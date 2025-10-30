@@ -1,4 +1,4 @@
-# Elektrihind Notify
+# Electrify
 
 Small Electron app that shows and notifies electricity prices every quarter-hour.
 
@@ -25,32 +25,19 @@ npm start
 ```
 
 ## Packaging (Windows)
-- If using electron-builder (package.json `build` present):
+- To create Windows build:
 ```powershell
 npm run dist
 ```
-- If using electron-packager:
+or with electron-packager:
 ```powershell
 npm run package
-# or
-npx electron-packager . ElektrihindNotify --platform=win32 --arch=x64 --out=dist --icon=icon.ico --overwrite
 ```
-
-Make sure you have a multi-size Windows icon (`icon.ico`) and point your packager to it (package.json `build.win.icon` or `--icon`).
 
 ## Data files
 - Price files are stored in `data/YYYY-MM-DD.json`.
 - Each file is an array of objects: `{ "date": "YYYY-MM-DD HH:MM", "price": <number> }`
 - On startup the app checks for today's file and fetches it from the API if missing.
-
-## Configuration & notes
-- Don't commit `data/`, `node_modules/`, or secrets. Use `.gitignore` (example included).
-- To enable start-on-login on Windows the app uses `app.setLoginItemSettings`.
-- Notifications use the packaged app's icon and `app.setAppUserModelId` for proper toasts on Windows.
-
-## Contributing
-- Fork, create a branch, make changes, open a PR.
-- Keep secrets out of the repo (use `.env`).
 
 ## License
 Add a LICENSE file (MIT recommended) or choose whichever license you prefer.

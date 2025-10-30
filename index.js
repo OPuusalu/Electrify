@@ -2,9 +2,9 @@ const { app, Tray, Menu, Notification, BrowserWindow } = require('electron');
 const path = require('path');
 
 // Force set app name early and multiple ways
-app.setName('Elektrihind Notify');
+app.setName('Electrify');
 if (app.setAppUserModelId) {
-    app.setAppUserModelId('Elektrihind Notify');
+    app.setAppUserModelId('Electrify');
 }
 
 let tray = null;
@@ -39,9 +39,9 @@ function createTray() {
         ]);
 
         tray.setContextMenu(contextMenu);
-        tray.setToolTip('Elektrihind Notify');
+        tray.setToolTip('Electrify');
 
-        console.log('Elektrihind tray created successfully');
+        console.log('Electrify tray created successfully');
         return true;
     } catch (error) {
         console.error('Failed to create tray:', error);
@@ -57,9 +57,8 @@ function showNotification(title, body) {
 
     console.log('Showing notification:', title);
     
-    // Create notification with explicit app name
     const notification = new Notification({
-        title: title,
+        title: title || 'Electrify',
         body: body,
         silent: false,
         icon: path.join(__dirname, 'new-icon.png')
@@ -67,7 +66,7 @@ function showNotification(title, body) {
 
     // Override the notification's title if needed
     notification.on('show', () => {
-        console.log('Elektrihind notification shown successfully');
+        console.log('Electrify notification shown successfully');
     });
 
     notification.show();
@@ -86,12 +85,12 @@ function showNotification(title, body) {
 }
 
 function createWindow() {
-    console.log('Creating Elektrihind main window...');
+    console.log('Creating Electrify main window...');
     
     mainWindow = new BrowserWindow({
         width: 350,
         height: 250,
-        title: 'Elektrihind',
+        title: 'Electrify',
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false
@@ -219,10 +218,10 @@ function setAutoLaunch(enable) {
 }
 
 // Set app name as early as possible
-app.setName('Elektrihind Notify');
+app.setName('Electrify');
 
 app.whenReady().then(async () => {
-    console.log('=== Elektrihind Notify on valmis ===');
+    console.log('=== Electrify Notify on valmis ===');
 
     // ensure today's data file exists (fetch and write if missing)
     await ensureTodayData();
@@ -232,7 +231,7 @@ app.whenReady().then(async () => {
 
     // Set app user model ID for Windows notifications
     if (process.platform === 'win32') {
-        app.setAppUserModelId('Elektrihind Notify');
+        app.setAppUserModelId('Electrify');
     }
     
     createWindow();
@@ -364,7 +363,7 @@ app.whenReady().then(async () => {
             try {
                 const price = await getPriceForNow();
                 const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const priceText = (price === null || price === undefined) ? 'Ei andmeid' : `${price} senti/kWh`;
+                const priceText = (price === null || price === undefined) ? 'Andmeid puuduvad' : `${price} senti/kWh`;
                 showNotification('Elektrihind Meeldetuletus', `Kell: ${timeLabel}\nHind: ${priceText}`);
             } catch (err) {
                 console.error('Failed to read price for notification:', err);

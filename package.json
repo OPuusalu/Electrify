@@ -1,5 +1,5 @@
 {
-  "name": "elektrihind-notify-app",
+  "name": "electrify",
   "version": "1.0.0",
   "description": "App for electricity price notifications",
   "main": "index.js",
@@ -7,7 +7,7 @@
     "start": "electron .",
     "build": "electron-builder",
     "dist": "electron-builder --publish=never",
-    "package": "electron-packager . ElektrihindNotify --platform=win32 --arch=x64 --out=dist --overwrite"
+    "package": "electron-packager . Electrify --platform=win32 --arch=x64 --out=dist --overwrite --icon=new-icon.ico"
   },
   "keywords": [
     "electricity",
@@ -23,8 +23,8 @@
     "electron-packager": "^17.1.2"
   },
   "build": {
-    "appId": "com.elektrihind.notify",
-    "productName": "Elektrihind Notify",
+    "appId": "com.electrify.notify",
+    "productName": "Electrify",
     "directories": {
       "output": "dist"
     },
