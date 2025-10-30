@@ -1,0 +1,9 @@
+node_modules/
+data/
+dist/
+out/
+*.log
+.env
+.vscode/
+.DS_Store
+Thumbs.db

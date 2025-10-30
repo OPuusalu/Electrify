@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Elektrihind — Praegune</title>
+    <style>
+      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; }
+      .card { text-align:center; width: 100vw; height: 100vh; justify-content: center; align-items: center; display: flex; flex-direction: column; }
+      h1 { margin:0 0 8px 0; font-size:18px; }
+      #price { font-size:34px; font-weight:600; margin:6px 0; }
+      #time { color:#666; margin-top:8px; }
+      #status { margin-top:10px; color:#b00; font-size:13px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Praegune elektrihind</h1>
+      <div id="price">Laadin…</div>
+      <div id="time"></div>
+      <div id="status"></div>
+    </div>
+
+    <script>
+      const fs = require('fs').promises;
+      const path = require('path');
+
+      function pad(n) { return String(n).padStart(2,'0'); }
+
+      // Round down to nearest quarter and return a Date object representing that quarter
+      function currentQuarterDate() {
+        const now = new Date();
+        const quarter = Math.floor(now.getMinutes() / 15) * 15;
+        const q = new Date(now);
+        q.setMinutes(quarter, 0, 0);
+        return q;
+      }
+
+      function formatQuarter(dateObj) {
+        const y = dateObj.getFullYear();
+        const mo = pad(dateObj.getMonth() + 1);
+        const d = pad(dateObj.getDate());
+        const hh = pad(dateObj.getHours());
+        const mm = pad(dateObj.getMinutes());
+        return `${y}-${mo}-${d} ${hh}:${mm}`;
+      }
+
+      async function readFileForDateObj(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = pad(dateObj.getMonth() + 1);
+        const d = pad(dateObj.getDate());
+        const file = path.join(__dirname, 'data', `${y}-${m}-${d}.json`);
+        try {
+          const raw = await fs.readFile(file, 'utf8');
+          return JSON.parse(raw);
+        } catch (err) {
+          return null;
+        }
+      }
+
+      // Try today, fallback to yesterday/tomorrow for edge cases
+      async function findPriceForQuarter(qDate) {
+        const target = formatQuarter(qDate);
+
+        const tryFiles = [
+          await readFileForDateObj(qDate),
+          await readFileForDateObj(new Date(qDate.getFullYear(), qDate.getMonth(), qDate.getDate() - 1)),
+          await readFileForDateObj(new Date(qDate.getFullYear(), qDate.getMonth(), qDate.getDate() + 1))
+        ];
+
+        for (const data of tryFiles) {
+          if (!Array.isArray(data)) continue;
+          const found = data.find(e => String(e.date) === target);
+          if (found && (typeof found.price === 'number' || typeof found.price === 'string')) {
+            return { price: found.price, timestamp: target };
+          }
+        }
+        return null;
+      }
+
+      const priceEl = document.getElementById('price');
+      const timeEl = document.getElementById('time');
+      const statusEl = document.getElementById('status');
+
+      async function updateDisplay() {
+        statusEl.textContent = '';
+        priceEl.textContent = 'Laadin…';
+        timeEl.textContent = '';
+
+        const q = currentQuarterDate();
+        const result = await findPriceForQuarter(q);
+
+        if (result) {
+          priceEl.textContent = `${result.price} senti/kWh`;
+          timeEl.textContent = `Kell: ${q.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} (${result.timestamp})`;
+        } else {
+          priceEl.textContent = 'Andmeid ei leitud';
+          timeEl.textContent = `Otsitud kvartal: ${formatQuarter(q)}`;
+          statusEl.textContent = 'Fail puudub või pole JSON-i parsitud. Kontrolli kausta ./data.';
+        }
+      }
+
+      // ms until next exact quarter boundary
+      function msUntilNextQuarter() {
+        const now = new Date();
+        const next = new Date(now);
+        const currQuarter = Math.floor(now.getMinutes() / 15) * 15;
+        next.setMinutes(currQuarter + 15, 0, 0);
+        return next.getTime() - now.getTime();
+      }
+
+      // schedule first update at next quarter boundary, and then every 15 minutes
+      async function scheduleUpdates() {
+        await updateDisplay();
+        const delay = msUntilNextQuarter();
+        setTimeout(() => {
+          updateDisplay();
+          setInterval(updateDisplay, 15 * 60 * 1000);
+        }, delay);
+      }
+
+      // start
+      scheduleUpdates().catch(err => {
+        statusEl.textContent = 'Viga: ' + String(err);
+      });
+    </script>
+  </body>
+</html>
