@@ -15,15 +15,11 @@ Small Electron app that shows and notifies electricity prices every quarter-hour
 - (Optional) ImageMagick or `png-to-ico` to create `icon.ico` for Windows
 
 ## Install & run (development)
-1. Open PowerShell in project folder:
-```powershell
-cd "C:\Coding\elektrihind-notify-app"
-```
-2. Install dependencies:
+1. Install dependencies:
 ```powershell
 npm install
 ```
-3. Run in development:
+2. Run in development:
 ```powershell
 npm start
 ```
