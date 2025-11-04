@@ -65,8 +65,8 @@ function showNotification(title, body) {
 }
 
 // Simple fetcher (no redirect handling). Returns parsed JSON (array) or throws.
-async function fetchPricesForDate(dateStr) {
-    const url = `https://elektrihind.ee/api/stock_price_daily.php?date=${encodeURIComponent(dateStr)}`;
+async function fetchPrices() {
+    const url = `https://elektrihind.ee/api/stock_price_daily.php`;
     return new Promise((resolve, reject) => {
         https.get(url, {
             headers: { 'Accept': 'application/json, text/plain, */*', 'User-Agent': 'Electrify/1.0' }
@@ -146,7 +146,7 @@ async function ensureDataForDate(dateObj) {
     } catch {
         // fetch and save
         try {
-            const data = await fetchPricesForDate(`${y}-${m}-${d}`);
+            const data = await fetchPrices();
             await fsp.writeFile(filepath, JSON.stringify(data, null, 2), 'utf8');
             // notify renderer right after saving to avoid waiting for fs.watch debounced event
             const filename = `${y}-${m}-${d}.json`;
