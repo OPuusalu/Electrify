@@ -4,12 +4,33 @@
     <meta charset="utf-8" />
     <title>Electrify</title>
     <style>
-      body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; }
-      .card { text-align:center; width: 100vw; height: 100vh; justify-content: center; align-items: center; display: flex; flex-direction: column; }
-      h1 { margin:0 0 8px 0; font-size:18px; }
-      #price { font-size:34px; font-weight:600; margin:6px 0; }
-      #time { color:#666; margin-top:8px; }
-      #status { margin-top:10px; color:#b00; font-size:13px; }
+      html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        background: #fff;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      }
+      *, *::before, *::after { box-sizing: inherit; }
+
+      /* center the card content and make it fill the window */
+      .card {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center; /* vertical + horizontal centering */
+        text-align: center;
+        padding: 20px;
+      }
+
+      h1 { margin: 0 0 8px 0; font-size: 18px; }
+      #price { font-size: 34px; font-weight: 600; margin: 6px 0; }
+      #time { color: #666; margin-top: 8px; }
+      #status { margin-top: 10px; color: #b00; font-size: 13px; }
     </style>
   </head>
   <body>
@@ -21,107 +42,90 @@
     </div>
 
     <script>
-      const fs = require('fs').promises;
-      const path = require('path');
-
-      function pad(n) { return String(n).padStart(2,'0'); }
-
-      // Round down to nearest quarter and return a Date object representing that quarter
-      function currentQuarterDate() {
-        const now = new Date();
-        const quarter = Math.floor(now.getMinutes() / 15) * 15;
-        const q = new Date(now);
-        q.setMinutes(quarter, 0, 0);
-        return q;
-      }
-
-      function formatQuarter(dateObj) {
-        const y = dateObj.getFullYear();
-        const mo = pad(dateObj.getMonth() + 1);
-        const d = pad(dateObj.getDate());
-        const hh = pad(dateObj.getHours());
-        const mm = pad(dateObj.getMinutes());
-        return `${y}-${mo}-${d} ${hh}:${mm}`;
-      }
-
-      async function readFileForDateObj(dateObj) {
-        const y = dateObj.getFullYear();
-        const m = pad(dateObj.getMonth() + 1);
-        const d = pad(dateObj.getDate());
-        const file = path.join(__dirname, 'data', `${y}-${m}-${d}.json`);
-        try {
-          const raw = await fs.readFile(file, 'utf8');
-          return JSON.parse(raw);
-        } catch (err) {
-          return null;
-        }
-      }
-
-      // Try today, fallback to yesterday/tomorrow for edge cases
-      async function findPriceForQuarter(qDate) {
-        const target = formatQuarter(qDate);
-
-        const tryFiles = [
-          await readFileForDateObj(qDate),
-          await readFileForDateObj(new Date(qDate.getFullYear(), qDate.getMonth(), qDate.getDate() - 1)),
-          await readFileForDateObj(new Date(qDate.getFullYear(), qDate.getMonth(), qDate.getDate() + 1))
-        ];
-
-        for (const data of tryFiles) {
-          if (!Array.isArray(data)) continue;
-          const found = data.find(e => String(e.date) === target);
-          if (found && (typeof found.price === 'number' || typeof found.price === 'string')) {
-            return { price: found.price, timestamp: target };
-          }
-        }
-        return null;
-      }
+      const { ipcRenderer } = require('electron');
 
       const priceEl = document.getElementById('price');
       const timeEl = document.getElementById('time');
       const statusEl = document.getElementById('status');
+
+      function pad(n){ return String(n).padStart(2,'0'); }
+
+      // Round down to nearest quarter
+      function currentQuarterDate() {
+        const now = new Date();
+        const q = Math.floor(now.getMinutes() / 15) * 15;
+        const d = new Date(now);
+        d.setMinutes(q, 0, 0);
+        return d;
+      }
+
+      function formatQuarter(date) {
+        return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+      }
+
+      // ms until next quarter boundary
+      function msUntilNextQuarter() {
+        const now = new Date();
+        const currQuarter = Math.floor(now.getMinutes() / 15) * 15;
+        const next = new Date(now);
+        next.setMinutes(currQuarter + 15, 0, 0);
+        return Math.max(0, next.getTime() - now.getTime());
+      }
+
+      // ask main for price (main will fetch & save if needed)
+      async function fetchPriceForNow() {
+        const q = currentQuarterDate();
+        const key = formatQuarter(q);
+        try {
+          const resp = await ipcRenderer.invoke('get-price-for-quarter', key);
+          return { q, key, resp };
+        } catch (err) {
+          return { q, key, error: String(err) };
+        }
+      }
 
       async function updateDisplay() {
         statusEl.textContent = '';
         priceEl.textContent = 'Laadin…';
         timeEl.textContent = '';
 
-        const q = currentQuarterDate();
-        const result = await findPriceForQuarter(q);
+        const { q, key, resp, error } = await fetchPriceForNow();
+        if (error) {
+          priceEl.textContent = 'Viga';
+          statusEl.textContent = error;
+          return;
+        }
 
-        if (result) {
-          priceEl.textContent = `${result.price} senti/kWh`;
-          timeEl.textContent = `Kell: ${q.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} (${result.timestamp})`;
+        if (resp && resp.price != null) {
+          priceEl.textContent = `${resp.price} senti/kWh`;
+          timeEl.textContent = `Kell: ${q.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} (${key})`;
+          statusEl.textContent = '';
         } else {
           priceEl.textContent = 'Andmeid ei leitud';
-          timeEl.textContent = `Otsitud kvartal: ${formatQuarter(q)}`;
-          statusEl.textContent = 'Fail puudub või pole JSON-i parsitud. Kontrolli kausta ./data.';
+          timeEl.textContent = `Kvartal: ${key}`;
+          statusEl.textContent = resp && resp.error ? `Viga: ${resp.error}` : 'Fail puudub või pole JSON-i parsitud.';
         }
       }
 
-      // ms until next exact quarter boundary
-      function msUntilNextQuarter() {
-        const now = new Date();
-        const next = new Date(now);
-        const currQuarter = Math.floor(now.getMinutes() / 15) * 15;
-        next.setMinutes(currQuarter + 15, 0, 0);
-        return next.getTime() - now.getTime();
-      }
-
-      // schedule first update at next quarter boundary, and then every 15 minutes
+      // schedule updates exactly on quarter boundaries
       async function scheduleUpdates() {
         await updateDisplay();
         const delay = msUntilNextQuarter();
         setTimeout(() => {
-          updateDisplay();
-          setInterval(updateDisplay, 15 * 60 * 1000);
+          updateDisplay().catch(() => {});
+          setInterval(() => updateDisplay().catch(() => {}), 15 * 60 * 1000);
         }, delay);
       }
 
-      // start
-      scheduleUpdates().catch(err => {
-        statusEl.textContent = 'Viga: ' + String(err);
+      // react to main's immediate notifications when data file is created/changed
+      ipcRenderer.on('data-file-changed', (event, filename) => {
+        // optional optimization: inspect filename to decide whether to refresh
+        console.log('data-file-changed', filename);
+        updateDisplay().catch(err => console.error('updateDisplay after file change failed', err));
       });
+
+      // start
+      scheduleUpdates().catch(err => { statusEl.textContent = String(err); });
     </script>
   </body>
 </html>
